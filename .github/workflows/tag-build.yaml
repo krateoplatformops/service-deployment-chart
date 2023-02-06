@@ -1,0 +1,51 @@
+name: Build stable Docker image (tags)
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    name: Create helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get remote repository
+        id: remote_repository
+        uses: mad9000/actions-find-and-replace-string@2
+        with:
+          source: ${{ github.event.repository.name }}
+          find: "-chart"
+          replace: ""
+      - name: App Version
+        uses: tdemin/find-latest-tag@v1
+        with:
+          repo: https://github.com/krateoplatformops/${{ steps.remote_repository.outputs.value }}.git
+      - name: Replace App Version in Chart.yaml
+        run: sed -i 's/APP_VERSION/${{ steps.app_version.outputs.tag }}/g' ./chart/Chart.yaml
+
+      - name: Chart Version
+        uses: dawidd6/action-get-tag@v1
+        id: version
+      - name: Replace Version in Chart.yaml
+        run: sed -i 's/VERSION/${{ steps.version.outputs.tag }}/g' ./chart/Chart.yaml
+      - name: Publish Helm chart
+        uses: stefanprodan/helm-gh-pages@master
+        with:
+          token: ${{ secrets.HELM_CHARTS_BOT }}
+          charts_dir: ./
+          charts_url: https://charts.krateo.io
+          owner: krateoplatformops
+          repository: helm-charts
+          branch: gh-pages
+      - name: Webhook
+        uses: indiesdev/curl@v1.1
+        with:
+          url: ${{ secrets.WEBHOOK_URL }}
+          method: "POST"
+          timeout: 5000
+          headers: '{ "x-token": "${{ secrets.WEBHOOK_TOKEN }}" }'
+          body: '{ "project": "${{ github.event.repository.name }}", "tag": "${{ steps.tagger.outputs.tag }}" }'
