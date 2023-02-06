@@ -22,6 +22,7 @@ jobs:
           replace: ""
       - name: App Version
         uses: tdemin/find-latest-tag@v1
+        id: app_version
         with:
           repo: https://github.com/krateoplatformops/${{ steps.remote_repository.outputs.value }}.git
       - name: Replace App Version in Chart.yaml
